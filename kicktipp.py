@@ -4,6 +4,7 @@ import urllib
 import random
 import math
 from html.parser import HTMLParser
+from userdata import user, password, runde
 
 def tipp(spiel):
     q = spiel['qheim'] / spiel['qgast']
@@ -17,16 +18,6 @@ def tipp(spiel):
         h += 1
         g += 1
     return h, g
-
-properties = {}
-with open('kicktipp.properties', 'rt') as propertiesfile:
-    for line in propertiesfile:
-        property = line.split('=')
-        properties[property[0].strip()]=property[1].strip()
-
-user = properties['user']
-password = properties['password']
-runde = properties['runde']
 
 spieltag = None if len(sys.argv) < 2 else sys.argv[1]
 debugenabled = False
@@ -48,7 +39,7 @@ class TippFormParser(HTMLParser):
     tipperid = None
     spieltag = None
     spiele = []
-    
+
     def handle_starttag(self, tag, attrs):
         if tag == 'table' and val(attrs,'id') == 'tippabgabeSpiele':
             self._istable = True
@@ -100,7 +91,7 @@ class KickTippBrowser:
         cookie = cookie[:cookie.index(';')]
         i = cookie.index('=')
         self._cookies[cookie[:i]]=cookie[i+1:]
-        
+
     def request(self,method, path, query = {}):
         headers = { 'Cookie': self._getcookies(), 'Accept': 'text/html' }
         fullpath = '/%s/%s?%s' % (runde, path, urllib.parse.urlencode(query))
