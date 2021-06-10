@@ -28,8 +28,6 @@ def tipp(spiel):
         g += 1
     return h, g
 
-spieltag = None if len(sys.argv) < 2 else sys.argv[1]
-
 def debug(*msg):
     if(DEBUG):
         print(*msg)
@@ -128,22 +126,28 @@ class KickTippBrowser:
     def close(self):
         self._connection.close()
 
-browser = KickTippBrowser()
-browser.request('GET', 'profil/login')
-browser.request('POST','profil/loginaction', {'kennung': user, 'passwort': password})
-tippform = browser.request('GET', 'tippabgabe', {'spieltagIndex': spieltag} if spieltag else {})
-parser = TippFormParser()
-parser.feed(str(tippform, 'utf-8'))
-debug(parser.tipperid)
-debug(parser.spiele)
-tipps = {'tipperId': parser.tipperid, 'spieltagIndex': parser.spieltag, 'bonus': 'false'}
-for spiel in parser.spiele:
-    formid = 'spieltippForms[%s].' % spiel['id']
-    heim, gast = tipp(spiel)
-    print('%d:%d %s - %s' % (heim, gast, spiel['heim'], spiel['gast']))
-    tipps[formid+'tippAbgegeben'] = 'true'
-    tipps[formid+'heimTipp'] = heim
-    tipps[formid+'gastTipp'] = gast
-browser.request('POST', 'tippabgabe', tipps)
-browser.request('GET', 'profil/logout')
-browser.close()
+if __name__ == '__main__':
+    spieltag = None if len(sys.argv) < 2 else sys.argv[1]
+    browser = KickTippBrowser()
+    try:
+        browser.request('GET', 'profil/login')
+        browser.request('POST','profil/loginaction', {'kennung': user, 'passwort': password})
+        try:
+            tippform = browser.request('GET', 'tippabgabe', {'spieltagIndex': spieltag} if spieltag else {})
+            parser = TippFormParser()
+            parser.feed(str(tippform, 'utf-8'))
+            debug(parser.tipperid)
+            debug(parser.spiele)
+            tipps = {'tipperId': parser.tipperid, 'spieltagIndex': parser.spieltag, 'bonus': 'false'}
+            for spiel in parser.spiele:
+                formid = 'spieltippForms[%s].' % spiel['id']
+                heim, gast = tipp(spiel)
+                print('%d:%d %s - %s' % (heim, gast, spiel['heim'], spiel['gast']))
+                tipps[formid+'tippAbgegeben'] = 'true'
+                tipps[formid+'heimTipp'] = heim
+                tipps[formid+'gastTipp'] = gast
+            browser.request('POST', 'tippabgabe', tipps)
+        finally:
+            browser.request('GET', 'profil/logout')
+    finally:
+        browser.close()
