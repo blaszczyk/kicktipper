@@ -6,6 +6,9 @@ import math
 from html.parser import HTMLParser
 from userdata import user, password, runde
 
+# set to True for enhanced output
+DEBUG = False
+
 def tipp(spiel):
     q = spiel['qheim'] / spiel['qgast']
     diff = int(round(math.log(q,1.9),0))
@@ -20,11 +23,10 @@ def tipp(spiel):
     return h, g
 
 spieltag = None if len(sys.argv) < 2 else sys.argv[1]
-debugenabled = False
 
-def debug(msg):
-    if(debugenabled):
-        print(msg)
+def debug(*msg):
+    if(DEBUG):
+        print(*msg)
 
 def val(attrs, key):
     for attr in attrs:
@@ -42,10 +44,13 @@ class TippFormParser(HTMLParser):
 
     def handle_starttag(self, tag, attrs):
         if tag == 'table' and val(attrs,'id') == 'tippabgabeSpiele':
+            debug('found table')
             self._istable = True
         elif tag =='input' and val(attrs,'id') == 'mitgliedIdHidden':
+            debug('found tipperId')
             self.tipperid = val(attrs, 'value')
         elif tag =='input' and val(attrs,'id') == 'spieltagIndex':
+            debug('found spieltagindex')
             self.spieltag = val(attrs, 'value')
         elif self._istable:
             if tag == 'tr':
@@ -54,17 +59,21 @@ class TippFormParser(HTMLParser):
                 self._colcount += 1
             elif self._colcount == 3 and tag == 'input' and val(attrs,'type') == 'hidden':
                 name = val(attrs, 'name')
+                debug('found spiel id')
                 self._spiel['id'] = name[name.index('[')+1:name.index(']')]
 
     def handle_endtag(self, tag):
         if tag == 'table':
+            debug('found table end')
             self._istable=False
         elif self._istable and tag =='tr' and 'id' in self._spiel:
             self.spiele.append(self._spiel)
+            debug('found spiel', self._spiel)
             self._spiel = {}
             
     def handle_data(self, data):
         if self._istable:
+            debug('col', self._colcount, data)
             if self._colcount == 1:
                 self._spiel['heim'] = data
             elif self._colcount == 2:
