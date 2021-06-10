@@ -13,6 +13,9 @@ COLS = [1, 2, 4, 5, 6, 7] # für EM tippspiel
 # COLS = [1, 2, 3, 4, 5, 6] # für Bundesliga
 
 def tipp(spiel):
+    if not 'qheim' in spiel:
+        print('keine quote für', spiel['heim'], spiel['gast'])
+        return 0, 0
     q = spiel['qheim'] / spiel['qgast']
     diff = int(round(math.log(q,1.9),0))
     h, g = 0, 0
