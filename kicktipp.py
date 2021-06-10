@@ -9,6 +9,9 @@ from userdata import user, password, runde
 # set to True for enhanced output
 DEBUG = False
 
+COLS = [1, 2, 4, 5, 6, 7] # für EM tippspiel
+# COLS = [1, 2, 3, 4, 5, 6] # für Bundesliga
+
 def tipp(spiel):
     q = spiel['qheim'] / spiel['qgast']
     diff = int(round(math.log(q,1.9),0))
@@ -49,7 +52,7 @@ class TippFormParser(HTMLParser):
         elif tag =='input' and val(attrs,'id') == 'mitgliedIdHidden':
             debug('found tipperId')
             self.tipperid = val(attrs, 'value')
-        elif tag =='input' and val(attrs,'id') == 'spieltagIndex':
+        elif tag =='input' and (val(attrs,'id') == 'spieltagIndex' or val(attrs,'name') == 'spieltagIndex'):
             debug('found spieltagindex')
             self.spieltag = val(attrs, 'value')
         elif self._istable:
@@ -57,7 +60,7 @@ class TippFormParser(HTMLParser):
                 self._colcount = -1
             elif tag == 'td':
                 self._colcount += 1
-            elif self._colcount == 3 and tag == 'input' and val(attrs,'type') == 'hidden':
+            elif self._colcount == COLS[2] and tag == 'input' and val(attrs,'type') == 'hidden':
                 name = val(attrs, 'name')
                 debug('found spiel id')
                 self._spiel['id'] = name[name.index('[')+1:name.index(']')]
@@ -74,15 +77,15 @@ class TippFormParser(HTMLParser):
     def handle_data(self, data):
         if self._istable:
             debug('col', self._colcount, data)
-            if self._colcount == 1:
+            if self._colcount == COLS[0]:
                 self._spiel['heim'] = data
-            elif self._colcount == 2:
+            elif self._colcount == COLS[1]:
                 self._spiel['gast'] = data
-            elif self._colcount == 4:
+            elif self._colcount == COLS[3] and data != '-':
                 self._spiel['qheim'] = float(data)
-            elif self._colcount == 5:
+            elif self._colcount == COLS[4] and data != '-':
                 self._spiel['qremis'] = float(data)
-            elif self._colcount == 6:
+            elif self._colcount == COLS[5] and data != '-':
                 self._spiel['qgast'] = float(data)
 
 class KickTippBrowser:
