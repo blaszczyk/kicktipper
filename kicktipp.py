@@ -9,8 +9,8 @@ from userdata import user, password, runde
 # set to True for enhanced output
 DEBUG = False
 
-COLS = [1, 2, 4, 5, 6, 7] # für EM tippspiel
-# COLS = [1, 2, 3, 4, 5, 6] # für Bundesliga
+# COLS = [1, 2, 4] # für EM tippspiel
+COLS = [1, 2, 3] # für Bundesliga
 
 def tipp(spiel):
 	if not 'qheim' in spiel:
@@ -32,37 +32,47 @@ def debug(*msg):
 	if(DEBUG):
 		print(*msg)
 
-def val(attrs, key):
-	for attr in attrs:
-		if attr[0] == key:
-			return attr[1]
-	return None
-
 class TippFormParser(HTMLParser):
 	_istable = False
 	_colcount = 0
 	_spiel = {}
+	_nextkey = None
 	tipperid = None
 	spieltag = None
 	spiele = []
 
 	def handle_starttag(self, tag, attrs):
-		if tag == 'table' and val(attrs,'id') == 'tippabgabeSpiele':
+		def attr(key):
+			for a_key, a_value in attrs:
+				if a_key == key:
+					return a_value
+			return None
+
+		if tag == 'table' and attr('id') == 'tippabgabeSpiele':
 			debug('found table')
 			self._istable = True
-		elif tag =='input' and val(attrs,'id') == 'mitgliedIdHidden':
+		elif tag =='input' and attr('id') == 'mitgliedIdHidden':
 			debug('found tipperId')
-			self.tipperid = val(attrs, 'value')
-		elif tag =='input' and (val(attrs,'id') == 'spieltagIndex' or val(attrs,'name') == 'spieltagIndex'):
+			self.tipperid = attr('value')
+		elif tag =='input' and (attr('id') == 'spieltagIndex' or attr('name') == 'spieltagIndex'):
 			debug('found spieltagindex')
-			self.spieltag = val(attrs, 'value')
+			self.spieltag = attr('value')
 		elif self._istable:
+			clazz = attr('class')
 			if tag == 'tr':
 				self._colcount = -1
 			elif tag == 'td':
 				self._colcount += 1
-			elif self._colcount == COLS[2] and tag == 'input' and val(attrs,'type') == 'hidden':
-				name = val(attrs, 'name')
+				nameAttr = attr('name')
+				if 'wettquote' in clazz:
+					if 'Heim' in nameAttr:
+						self._nextkey = 'qheim'
+					elif 'Remis' in nameAttr:
+						self._nextkey = 'qremis'
+					elif 'Gast' in nameAttr:
+						self._nextkey = 'qgast'
+			elif self._colcount == COLS[2] and tag == 'input' and attr('type') == 'hidden':
+				name = attr('name')
 				debug('found spiel id')
 				self._spiel['id'] = name[name.index('[')+1:name.index(']')]
 
@@ -82,12 +92,10 @@ class TippFormParser(HTMLParser):
 				self._spiel['heim'] = data
 			elif self._colcount == COLS[1]:
 				self._spiel['gast'] = data
-			elif self._colcount == COLS[3] and data != '-':
-				self._spiel['qheim'] = float(data)
-			elif self._colcount == COLS[4] and data != '-':
-				self._spiel['qremis'] = float(data)
-			elif self._colcount == COLS[5] and data != '-':
-				self._spiel['qgast'] = float(data)
+			elif self._nextkey:
+				qstring = data[:-2]  if ' /' in data else data
+				self._spiel[self._nextkey] = float(qstring)
+				self._nextkey = None
 
 class KickTippBrowser:
 	def __init__(self):
@@ -114,9 +122,9 @@ class KickTippBrowser:
 		status = response.status
 		debug('response %s' % status)
 		data = response.read()
-		for header in response.getheaders():
-			if header[0] == 'Set-Cookie':
-				self._setcookie(header[1])
+		for name, value in response.getheaders():
+			if name == 'Set-Cookie':
+				self._setcookie(value)
 		if status > 399:
 			print('request %s@%s failed' % (method, path))
 			print('error message: ' + data.decode())
