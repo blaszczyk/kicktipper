@@ -5,6 +5,7 @@ import random
 import math
 from html.parser import HTMLParser
 from userdata import user, password, runde
+from contextlib import contextmanager
 
 # set to True for enhanced output
 DEBUG = False
@@ -97,51 +98,52 @@ class TippFormParser(HTMLParser):
 				self._spiel[self._nextkey] = float(qstring)
 				self._nextkey = None
 
-class KickTippBrowser:
-	def __init__(self):
-		self._cookies = {}
-		self._connection = http.client.HTTPSConnection('www.kicktipp.de')
+@contextmanager
+def kicktipp_request():
+	cookies = {}
+	connection = http.client.HTTPSConnection('www.kicktipp.de')
 
-	def _getcookies(self):
+	def getcookies():
 		res = ''
-		for cookie in self._cookies.items():
+		for cookie in cookies.items():
 			res = res + '; ' + cookie[0] + '=' + cookie[1]
 		return res[2:]
-		
-	def _setcookie(self,cookie):
+
+	def setcookie(cookie):
 		cookie = cookie[:cookie.index(';')]
 		i = cookie.index('=')
-		self._cookies[cookie[:i]]=cookie[i+1:]
+		cookies[cookie[:i]]=cookie[i+1:]
 
-	def request(self,method, path, query = {}):
-		headers = { 'Cookie': self._getcookies(), 'Accept': 'text/html' }
+	def request(method, path, query = {}):
+		headers = { 'Cookie': getcookies(), 'Accept': 'text/html' }
 		fullpath = '/%s/%s?%s' % (runde, path, urllib.parse.urlencode(query))
 		debug('requesting %s@%s' % (method, fullpath))
-		self._connection.request(method, fullpath, None, headers)
-		response = self._connection.getresponse()
+		connection.request(method, fullpath, None, headers)
+		response = connection.getresponse()
 		status = response.status
 		debug('response %s' % status)
 		data = response.read()
 		for name, value in response.getheaders():
 			if name == 'Set-Cookie':
-				self._setcookie(value)
+				setcookie(value)
 		if status > 399:
 			print('request %s@%s failed' % (method, path))
 			print('error message: ' + data.decode())
-			exit(1)
+			raise Exception('http response error')
 		return data
- 
-	def close(self):
-		self._connection.close()
+
+	try:
+		yield request
+	finally:
+		connection.close()
 
 if __name__ == '__main__':
 	spieltag = None if len(sys.argv) < 2 else sys.argv[1]
-	browser = KickTippBrowser()
-	try:
-		browser.request('GET', 'profil/login')
-		browser.request('POST','profil/loginaction', {'kennung': user, 'passwort': password})
+	with kicktipp_request() as request:
+		request('GET', 'profil/login')
+		request('POST','profil/loginaction', {'kennung': user, 'passwort': password})
 		try:
-			tippform = browser.request('GET', 'tippabgabe', {'spieltagIndex': spieltag} if spieltag else {})
+			tippform = request('GET', 'tippabgabe', {'spieltagIndex': spieltag} if spieltag else {})
 			parser = TippFormParser()
 			parser.feed(str(tippform, 'utf-8'))
 			debug(parser.tipperid)
@@ -154,8 +156,6 @@ if __name__ == '__main__':
 				tipps[formid+'tippAbgegeben'] = 'true'
 				tipps[formid+'heimTipp'] = heim
 				tipps[formid+'gastTipp'] = gast
-			browser.request('POST', 'tippabgabe', tipps)
+			request('POST', 'tippabgabe', tipps)
 		finally:
-			browser.request('GET', 'profil/logout')
-	finally:
-		browser.close()
+			request('GET', 'profil/logout')
