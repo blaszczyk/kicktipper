@@ -2,9 +2,9 @@
 
 ## Konfiguration
 
-Erstelle eine Datei namens 'userdata.py' im gleichen Ordner wie das Skript und schreibe folgendes rein:
+Erstelle eine Datei namens 'userdata.py' im gleichen Ordner wie das Skript mit Inhalt:
 ```
-user = 'Benutzername'
+user = 'Email Addresse'
 password = 'Passwort'
 runde = 'Name der Tipprunde'
 ```
