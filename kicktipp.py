@@ -76,6 +76,8 @@ class TippFormParser(HTMLParser):
 				name = attr('name')
 				debug('found spiel id')
 				self._spiel['id'] = name[name.index('[')+1:name.index(']')]
+			elif attr('class') == 'wettquote-link':
+				self._nextkey = '_DASHED_QUOTES'
 
 	def handle_endtag(self, tag):
 		if tag == 'table':
@@ -94,8 +96,15 @@ class TippFormParser(HTMLParser):
 			elif self._colcount == COLS[1]:
 				self._spiel['gast'] = data
 			elif self._nextkey:
-				qstring = data[:-2]  if ' /' in data else data
-				self._spiel[self._nextkey] = float(qstring)
+				if self._nextkey == '_DASHED_QUOTES':
+					debug('dashed data', data)
+					split = data.split('/')
+					self._spiel['qheim'] = float(split[0].strip())
+					self._spiel['qremis'] = float(split[1].strip())
+					self._spiel['qgast'] = float(split[2].strip())
+				else:
+					qstring = data[:-2]  if ' /' in data else data
+					self._spiel[self._nextkey] = float(qstring)
 				self._nextkey = None
 
 @contextmanager
